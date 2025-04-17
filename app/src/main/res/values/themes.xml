@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- 自定义主题 -->
+    <style name="Theme.JiaozzRecords" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- 设置全局窗口背景为奶油色 -->
+        <item name="android:windowBackground">@color/white</item>
+        <!-- 其他你可以继续添加的属性，例如字体颜色、按钮样式等 -->
+    </style>
+
+</resources>
