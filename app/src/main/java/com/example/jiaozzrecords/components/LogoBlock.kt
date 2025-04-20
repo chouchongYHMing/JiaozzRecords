@@ -53,19 +53,10 @@ fun LogoBlock(
         ) {
             Column {
                 Text(
-                    text = "User",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontStyle = FontStyle.Italic
-                    )
-                )
-                Text(
                     text = "欢迎光临",
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 30.sp,
+                        fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
                         fontStyle = FontStyle.Italic
                     )

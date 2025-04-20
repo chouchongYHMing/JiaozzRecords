@@ -77,7 +77,7 @@ fun BottomSheet(
                                 awaitFirstDown()
                             }
                         },
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.TopStart
                 ) {
                     sheetContent()
                 }
