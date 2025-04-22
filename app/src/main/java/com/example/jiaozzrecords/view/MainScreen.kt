@@ -5,15 +5,14 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 @Composable
-fun MainScreen(
-    modifier: Modifier = Modifier,
-    pagerState: PagerState
-) {
+fun MainScreen(pagerState: PagerState, modifier: Modifier = Modifier) {
     HorizontalPager(
-        state = pagerState,
-        modifier = modifier.fillMaxSize()
+        state    = pagerState,          // PagerState 里已经有 pageCount
+        modifier = modifier.fillMaxSize(),
+        pageSpacing           = 0.dp    // 可选：页间距
     ) { page ->
         when (page) {
             0 -> HomeScreen()

@@ -10,6 +10,8 @@ android {
     namespace = "com.example.jiaozzrecords"
     compileSdk = 35
 
+    composeOptions { kotlinCompilerExtensionVersion = "1.5.15" }
+
     defaultConfig {
         applicationId = "com.example.jiaozzrecords"
         minSdk = 34
@@ -53,12 +55,13 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.material.icons.extended)
-    implementation("com.google.android.gms:play-services-location:21.0.1")
-    implementation("io.ktor:ktor-client-core:2.3.5")
+    implementation("androidx.compose.ui:ui-graphics:1.7.8")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("io.ktor:ktor-client-core:2.3.9")
     implementation("io.ktor:ktor-client-cio:2.3.5")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.5")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.9")
     implementation("io.ktor:ktor-client-encoding:2.3.5")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.5")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.9")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("com.github.skydoves:landscapist-coil:2.2.3")
     testImplementation(libs.junit)

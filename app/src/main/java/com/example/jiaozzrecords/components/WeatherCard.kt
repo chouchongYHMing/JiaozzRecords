@@ -2,9 +2,14 @@
 
 package com.example.jiaozzrecords.components
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.location.Location
 import android.util.Log
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -38,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.jiaozzrecords.R
 import com.example.jiaozzrecords.sheet.info.WeatherInfoProvider
 import com.example.jiaozzrecords.ui.theme.JiaozzRecordsTheme
@@ -51,8 +57,11 @@ import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.request
+import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -94,80 +103,6 @@ fun FadingWeatherImage(newResId: Int, modifier: Modifier = Modifier) {
                 )
             }
         )
-    }
-}
-
-@Composable
-fun WeatherCard(modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
-    val context = LocalContext.current
-    var weatherNow by rememberSaveable { mutableStateOf("未知") }
-    var backgroundRes by rememberSaveable { mutableIntStateOf(R.drawable.weather_others) }
-    var weatherDescription by rememberSaveable { mutableStateOf("天气组件") }
-    val scope = rememberCoroutineScope()
-    val fusedClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-
-    LaunchedEffect(Unit) {
-        val nowHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY).toString()
-        WeatherInfoProvider.timeNow = nowHour
-
-        fetchAndUpdateWeather(fusedClient) { response ->
-            weatherNow = response.now.text
-
-            // ✅ 在这一步就直接设置背景图和描述，省一个 Effect
-            backgroundRes = getWeatherDrawable(WeatherInfoProvider.timeNow, response.now.text)
-            weatherDescription = getWeatherText(backgroundRes)
-        }
-    }
-
-    Surface(
-        modifier = modifier
-            .height(120.dp)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.Transparent)
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) {
-                onClick()
-                scope.launch {
-                    val location = getLastLocation(fusedClient)
-                    if (location != null) {
-                        WeatherInfoProvider.lat = location.latitude
-                        WeatherInfoProvider.lon = location.longitude
-                        val response = fetchWeatherRaw(location.latitude, location.longitude)
-                        WeatherInfoProvider.weatherNow = response.now.text
-                        weatherNow = WeatherInfoProvider.weatherNow
-                    }
-                }
-            },
-        shape = RoundedCornerShape(12.dp),
-        color = Color.Transparent
-    ) {
-        Box(Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-        ) {
-            FadingWeatherImage(newResId = backgroundRes, modifier = Modifier.fillMaxSize())
-            Column(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 12.dp)
-            ) {
-                Text(
-                    text = "此刻：",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = weatherDescription,
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
     }
 }
 
@@ -229,20 +164,37 @@ suspend fun fetchWeatherRaw(lat: Double, lon: Double): HeWeatherNowResponse = wi
             WeatherInfoProvider.requestUrl = this.url.buildString()
         }
 
+        // 🔍 记录完整URL和状态码
+        WeatherInfoProvider.requestUrl = response.request.url.toString()
+        Log.d("WeatherFetch", "🌐 请求地址：${WeatherInfoProvider.requestUrl}")
+        Log.d("WeatherFetch", "🔁 状态码：${response.status}")
+
+        // ❗确保状态码是成功的才处理
+        if (!response.status.isSuccess()) {
+            throw Exception("API状态异常：${response.status}")
+        }
+
         val jsonString = response.bodyAsText()
+        Log.d("WeatherFetch", "📦 原始响应：$jsonString")
         WeatherInfoProvider.rawResponseJson = jsonString
 
-        // ✅ 反序列化
         val parsed = kotlinx.serialization.json.Json.decodeFromString<HeWeatherNowResponse>(jsonString)
-        // ✅ 提取天气描述到 WeatherInfoProvider.weatherNow
-        WeatherInfoProvider.weatherNow = parsed.now.text
 
+        // 🔐 如果返回的 code != "200"，说明业务失败
+        if (parsed.code != "200") {
+            throw Exception("API返回错误码：${parsed.code}")
+        }
+
+        // ✅ 成功更新共享数据
+        WeatherInfoProvider.weatherNow = parsed.now.text
         return@withContext parsed
 
     } catch (e: Exception) {
-        val msg = e.message ?: "未知错误"
-        Log.e("WeatherFetch", "❌ 和风天气获取失败: $msg")
-        WeatherInfoProvider.errorMsg = "天气获取失败：$msg"
+        val errorMsg = e.message ?: "未知错误"
+        Log.e("WeatherFetch", "❌ 获取失败：$errorMsg")
+        WeatherInfoProvider.errorMsg = "天气获取失败：$errorMsg"
+
+        // 返回一个假的默认值以防止崩溃
         HeWeatherNowResponse(
             code = "500",
             now = HeWeatherNow(text = "请求失败")
@@ -253,43 +205,157 @@ suspend fun fetchWeatherRaw(lat: Double, lon: Double): HeWeatherNowResponse = wi
 }
 
 @SuppressLint("MissingPermission")
-suspend fun getLastLocation(client: FusedLocationProviderClient): Location? =
+suspend fun requestCurrentLocation(client: FusedLocationProviderClient): Location? =
     withContext(Dispatchers.IO) {
         suspendCancellableCoroutine { cont ->
-            client.lastLocation
-                .addOnSuccessListener { cont.resume(it) {} }
-                .addOnFailureListener { cont.resume(null) {} }
+            client.getCurrentLocation(
+                com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY,
+                null
+            ).addOnSuccessListener { location ->
+                cont.resume(location) {}
+            }.addOnFailureListener {
+                cont.resume(null) {}
+            }
         }
     }
 
-suspend fun fetchAndUpdateWeather(
-    client: FusedLocationProviderClient,
-    update: (HeWeatherNowResponse) -> Unit
-) {
-    val location = getLastLocation(client)
-    if (location != null) {
-        WeatherInfoProvider.lat = location.latitude
-        WeatherInfoProvider.lon = location.longitude
-        val response = fetchWeatherRaw(location.latitude, location.longitude)
-        WeatherInfoProvider.weatherResponse = response
-        WeatherInfoProvider.weatherNow = response.now.text
-        update(response)
+fun shouldRefreshWeather(currentHour: String, cachedHour: String?, weatherNow: String): Boolean {
+    return cachedHour != currentHour || weatherNow == "未知"
+}
+
+
+@Composable
+fun WeatherCard(modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
+    val context = LocalContext.current
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            Toast.makeText(context, "请授予定位权限以获取天气信息", Toast.LENGTH_SHORT).show()
+        }
+    }
+    var weatherNow by rememberSaveable { mutableStateOf("未知") }
+    var backgroundRes by rememberSaveable { mutableIntStateOf(R.drawable.weather_others) }
+    var weatherDescription by rememberSaveable { mutableStateOf("天气组件") }
+    val scope = rememberCoroutineScope()
+    val fusedClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val defaultLat = 39.9042
+    val defaultLon = 116.4074
+
+    LaunchedEffect(Unit) {
+        //  检查定位权限
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // 如果没权限，请求权限
+            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            return@LaunchedEffect
+        }
+        var firstLoad = false
+        var lastHour = WeatherInfoProvider.timeNow
+        while (true) {
+            val nowHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY).toString()
+            if (!firstLoad ||shouldRefreshWeather(nowHour, lastHour, weatherNow)) {
+                firstLoad = true
+
+                lastHour = nowHour
+                WeatherInfoProvider.timeNow = nowHour
+
+                val location = requestCurrentLocation(fusedClient)
+                val lat = location?.latitude ?: defaultLat
+                val lon = location?.longitude ?: defaultLon
+                val response = fetchWeatherRaw(lat, lon)
+                weatherNow = response.now.text
+                WeatherInfoProvider.lat = lat
+                WeatherInfoProvider.lon = lon
+                backgroundRes = getWeatherDrawable(nowHour, response.now.text)
+                weatherDescription = getWeatherText(backgroundRes)
+            }
+
+            delay(60 * 1000)
+        }
+    }
+
+    Surface(
+        modifier = modifier
+            .height(120.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.Transparent)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) {
+                onClick()
+                scope.launch {
+                    val location = requestCurrentLocation(fusedClient)
+                    val lat = location?.latitude ?: defaultLat
+                    val lon = location?.longitude ?: defaultLon
+
+                    val nowHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY).toString()
+                    WeatherInfoProvider.timeNow = nowHour
+
+                    val response = fetchWeatherRaw(lat, lon)
+                    weatherNow = response.now.text
+                    backgroundRes = getWeatherDrawable(nowHour, response.now.text)
+                    weatherDescription = getWeatherText(backgroundRes)
+                }
+            },
+        shape = RoundedCornerShape(12.dp),
+        color = Color.Transparent
+    ) {
+        Box(Modifier
+            .fillMaxSize()
+            .background(Color.Transparent)
+        ) {
+            FadingWeatherImage(newResId = backgroundRes, modifier = Modifier.fillMaxSize())
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 12.dp)
+            ) {
+                Text(
+                    text = "此刻：",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = weatherDescription,
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
+
 
 fun getWeatherDrawable(hourStr: String, weather: String): Int {
     val hour = hourStr.toIntOrNull() ?: return R.drawable.weather_others
     val timePeriod = when (hour) {
-        in 5..11 -> "morning"
-        in 12..16 -> "noon"
+        in 5..9 -> "morning"
+        in 10..16 -> "noon"
         in 17..20 -> "sunset"
         else -> "night"
     }
+    val isRain = listOf("雨", "雷阵雨", "小雨", "中雨", "大雨", "暴雨", "阵雨", "毛毛雨", "冻雨", "毛毛雨/细雨", "小到中雨", "中到大雨", "大到暴雨", "强阵雨")
+        .any { keyword -> weather.contains(keyword) }
+
+    val isSnow = listOf("雪", "雨夹雪", "小雪", "中雪", "大雪", "暴雪", "阵雪", "雨雪天气", "阵雨夹雪", "小到中雪", "中到大雪", "大到暴雪")
+        .any { keyword -> weather.contains(keyword) }
+
+    val isCloudy = listOf("多云", "少云", "晴间多云").any { keyword -> weather.contains(keyword)}
+
     val weatherType = when {
         weather.contains("晴") -> "sunny"
-        weather.contains("多云") -> "cloudy"
+        isCloudy -> "cloudy"
         weather.contains("阴") -> if (timePeriod == "night") "cloudy" else "overcast"
-        weather.contains("雨") -> "rainy"
+        isRain -> "rainy"
+        isSnow -> "snowy"
         else -> "others"
     }
     val name = if (weatherType == "others") "weather_others" else "weather_${weatherType}${timePeriod}"
@@ -308,6 +374,10 @@ fun getWeatherDrawable(hourStr: String, weather: String): Int {
         "weather_rainynoon" -> R.drawable.weather_rainynoon
         "weather_rainysunset" -> R.drawable.weather_rainysunset
         "weather_rainynight" -> R.drawable.weather_rainynight
+        "weather_snowymorning" -> R.drawable.weather_snowymorning
+        "weather_snowynoon" -> R.drawable.weather_snowynoon
+        "weather_snowysunset" -> R.drawable.weather_snowysunset
+        "weather_snowynight" -> R.drawable.weather_snowynight
         else -> R.drawable.weather_others
     }
 }
@@ -327,6 +397,10 @@ fun getWeatherText(resId: Int): String = when (resId) {
     R.drawable.weather_rainynoon -> "雨落正午"
     R.drawable.weather_rainysunset -> "雨落傍晚"
     R.drawable.weather_rainynight -> "雨夜时分"
+    R.drawable.weather_snowymorning -> "雪落清晨"
+    R.drawable.weather_snowynoon -> "雪落正午"
+    R.drawable.weather_snowysunset -> "雪覆夕阳"
+    R.drawable.weather_snowynight -> "雪夜时分"
     R.drawable.weather_others -> "其他天气"
     else -> "信息错误"
 }
@@ -338,3 +412,5 @@ fun WeatherCardPreview() {
         WeatherCard()
     }
 }
+
+

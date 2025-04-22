@@ -62,18 +62,6 @@ fun WeatherDetailSheet() {
             color = Color.LightGray
         )
 
-        info.weatherResponse?.let { response ->
-            Text(
-                text = "原始描述: ${response.now.text}",
-                fontSize = 16.sp,
-                color = Color(0xFF888888)
-            )
-        } ?: Text(
-            text = "⚠️ 无原始响应数据",
-            fontSize = 16.sp,
-            color = Color.Red
-        )
-
         info.errorMsg?.let {
             Text(
                 text = "⚠️ 错误信息: $it",
