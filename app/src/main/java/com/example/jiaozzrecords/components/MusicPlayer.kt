@@ -134,7 +134,7 @@ fun MusicPlayer(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(36.dp)
+                        .height(52.dp)
                         .align(Alignment.BottomCenter)
                         .background(Color.Black.copy(alpha = 0.5f))
                 ) {
