@@ -18,10 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
 import com.example.jiaozzrecords.components.BottomBar
+import com.example.jiaozzrecords.screen.MainScreen
 import com.example.jiaozzrecords.sheet.info.WeatherInfoProvider
 import com.example.jiaozzrecords.ui.AppBackground
 import com.example.jiaozzrecords.ui.theme.JiaozzRecordsTheme
-import com.example.jiaozzrecords.view.MainScreen
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority

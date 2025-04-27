@@ -1,6 +1,6 @@
 package com.example.jiaozzrecords.sheet.info
 
-import com.example.jiaozzrecords.components.HeWeatherNowResponse
+import com.example.jiaozzrecords.utils.HeWeatherNowResponse
 
 object WeatherInfoProvider {
     var lat: Double? = null

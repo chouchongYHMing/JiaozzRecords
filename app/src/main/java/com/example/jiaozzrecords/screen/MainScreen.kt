@@ -1,4 +1,4 @@
-package com.example.jiaozzrecords.view
+package com.example.jiaozzrecords.screen
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager

@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.material.icons.extended)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
     implementation("androidx.compose.ui:ui-graphics:1.7.8")
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("io.ktor:ktor-client-core:2.3.9")

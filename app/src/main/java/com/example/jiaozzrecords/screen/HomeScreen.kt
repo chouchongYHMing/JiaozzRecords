@@ -1,4 +1,4 @@
-package com.example.jiaozzrecords.view
+package com.example.jiaozzrecords.screen
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -6,12 +6,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,20 +28,31 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.jiaozzrecords.components.BackappManager
-import com.example.jiaozzrecords.components.MusicPlayer
-import com.example.jiaozzrecords.components.PreviewPlay
-import com.example.jiaozzrecords.components.UserMusiclists
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.jiaozzrecords.components.AlbumCard
+import com.example.jiaozzrecords.components.AlbumStore
+import com.example.jiaozzrecords.components.LogoBlock
+import com.example.jiaozzrecords.components.PlaylistsStore
+import com.example.jiaozzrecords.components.SearchBar
+import com.example.jiaozzrecords.components.WeatherCard
 import com.example.jiaozzrecords.sheet.BottomSheet
 import com.example.jiaozzrecords.sheet.BottomSheetContent
 import com.example.jiaozzrecords.sheet.BottomSheetType
 import com.example.jiaozzrecords.ui.theme.JiaozzRecordsTheme
+import com.example.jiaozzrecords.viewmodel.WeatherViewModel
+
 
 @Composable
-fun PlayerScreen(modifier: Modifier = Modifier) {
+fun HomeScreen(
+    modifier: Modifier = Modifier,
+    weatherVm: WeatherViewModel = viewModel()
+) {
+    val uiState by weatherVm.uiState.collectAsState()
+
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val focusManager = LocalFocusManager.current
+
     var showBottomSheet by remember { mutableStateOf(false) }
     var sheetType by remember { mutableStateOf(BottomSheetType.NONE) }
 
@@ -59,65 +75,99 @@ fun PlayerScreen(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.Start
         ) {
-            // 主卡片区域
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(screenHeight * 0.06f)
+                    .shadow(12.dp, RoundedCornerShape(16.dp)),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                tonalElevation = 8.dp
+            ) {
+                SearchBar(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Start
             ) {
-                //左侧
-                UserMusiclists(
-                    width = screenWidth * 0.40f,
-                    height = screenHeight * 0.56f,
+                LogoBlock(
+                    modifier = Modifier
+                        .width(screenWidth * 0.43f)
+                        .height(screenHeight * 0.36f)
+                        .padding(10.dp),
                     onClick = {
                         showBottomSheet = true
-                        sheetType = BottomSheetType.MUSICLISTS
+                        sheetType = BottomSheetType.LOGO
                     }
                 )
-                //右侧
+
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .padding(10.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    MusicPlayer(
-                        modifier = Modifier
-                            .height(screenHeight * 0.32f)
-                            .fillMaxWidth()
-                            .shadow(12.dp, RoundedCornerShape(16.dp)),
-                        onExClick = {
+                    WeatherCard(
+                        modifier           = Modifier
+                            .height(screenHeight * 0.12f)
+                            .fillMaxWidth(),
+                        backgroundRes      = uiState.backgroundRes,
+                        weatherDescription = uiState.weatherDescription,
+                        isLoading          = uiState.isLoading,
+                        errorMessage       = uiState.errorMessage,
+                        onClick            = {
                             showBottomSheet = true
-                            sheetType = BottomSheetType.EX
+                            sheetType       = BottomSheetType.WEATHER
                         }
                     )
 
-                    PreviewPlay(
+                    AlbumCard(
                         modifier = Modifier
-                            .height(screenHeight * 0.19f)
+                            .height(screenHeight * 0.24f)
                             .fillMaxWidth(),
                         onClick = {
                             showBottomSheet = true
-                            sheetType = BottomSheetType.PREVIEW
+                            sheetType = BottomSheetType.RECOMMMEND
                         }
                     )
                 }
             }
-            BackappManager(
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            AlbumStore(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(screenHeight * 0.3f),
+                    .height(screenHeight * 0.15f),
                 onClick = {
                     showBottomSheet = true
-                    sheetType = BottomSheetType.BACKAPP
+                    sheetType = BottomSheetType.ALBUM
+                }
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            PlaylistsStore(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(screenHeight * 0.15f),
+                onClick = {
+                    showBottomSheet = true
+                    sheetType = BottomSheetType.PLAYLIST
                 }
             )
         }
+
         BottomSheet(
             visible = showBottomSheet,
-            onDismissRequest = {
-                showBottomSheet = false
-                sheetType = BottomSheetType.NONE
-            },
+            onDismissRequest = { showBottomSheet = false },
             sheetHeight = screenHeight * 0.6f
         ) {
             BottomSheetContent(type = sheetType)
@@ -125,12 +175,10 @@ fun PlayerScreen(modifier: Modifier = Modifier) {
     }
 }
 
-
-
 @Preview(showBackground = true)
 @Composable
-fun PlayerScreenPreview() {
+fun HomeScreenPreview() {
     JiaozzRecordsTheme {
-        PlayerScreen()
+        HomeScreen()
     }
 }
